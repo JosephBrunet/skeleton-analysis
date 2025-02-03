@@ -1,0 +1,75 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools",
+    "setuptools-scm",
+]
+
+[project]
+authors = [
+    {email = "c.walsh.11@ucl.ac.uk", name = "Claire Walsh"},
+    {email = "j.brunet@ucl.ac.uk", name = "Joseph Brunet"},
+]
+classifiers = [
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Typing :: Typed",
+]
+dependencies = [
+    "networkx",
+    "matplotlib",
+    "numpy",
+    "pandas",
+]
+description = "Skeleton analysis"
+keywords = [
+]
+name = "skeleton_analysis"
+readme = "README.md"
+requires-python = ">=3.8"
+version = "1.0.0"
+license.file = "LICENSE"
+
+[project.optional-dependencies]
+test = [
+    'pytest',
+    'pytest-cov',
+]
+
+[project.scripts]
+
+[project.urls]
+homepage = "https://github.com/JosephBrunet/skeleton-analysis.git"
+
+[tool.mypy]
+plugins = [
+    "pydantic.mypy",
+]
+python_version = "3.8"
+strict = true
+
+[tool.ruff]
+fix = true
+force-exclude = true
+target-version = "py38"
+
+[tool.ruff.lint]
+select = [
+    "F401", # Remove unused imports
+    "I", # Sort imports
+    "UP", # Update Python syntax
+]
+mccabe.max-complexity = 18
+pep8-naming.classmethod-decorators = [
+    "classmethod",
+    "pydantic.validator",
+]
+
+[tool.tomlsort]
+all = true
+spaces_indent_inline_array = 4
+trailing_comma_inline_array = true
+overrides."project.classifiers".inline_arrays = false
+overrides."tool.coverage.paths.source".inline_arrays = false
