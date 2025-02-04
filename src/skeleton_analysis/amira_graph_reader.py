@@ -1,9 +1,10 @@
+from typing import List
+
 import numpy as np
-from typing import List, Dict, Union, Any
 
 
 class AmiraGraphReader:
-    """ Class to read an Amira ASCII spatial graph file efficiently. """
+    """Class to read an Amira ASCII spatial graph file efficiently."""
 
     def __init__(self, filepath):
         self.filepath = filepath
@@ -11,21 +12,23 @@ class AmiraGraphReader:
         self._num_edges = 0
         self._num_points = 0
         self._file_lines = self._read_file()  # Read file once
-        self.file_intro, self._vertex_data, self._edge_data, self._point_data = self._parse_file()
+        self.file_intro, self._vertex_data, self._edge_data, self._point_data = (
+            self._parse_file()
+        )
 
     @property
     def vertex_data(self):
-        """ Returns structured vertex data as a dictionary. """
+        """Returns structured vertex data as a dictionary."""
         return self._vertex_data
 
     @property
     def edge_data(self):
-        """ Returns structured edge data as a dictionary. """
+        """Returns structured edge data as a dictionary."""
         return self._edge_data
 
     @property
     def point_data(self):
-        """ Returns structured point data as a dictionary. """
+        """Returns structured point data as a dictionary."""
         return self._point_data
 
     @property
@@ -40,15 +43,14 @@ class AmiraGraphReader:
     def num_points(self):
         return self._num_points
 
-
     def _read_file(self):
         """
         Reads the file once and returns a list of its lines.
-        
+
         Returns:
             list of str: The file content split into lines.
         """
-        with open(self.filepath, 'r') as file:
+        with open(self.filepath) as file:
             return file.readlines()
 
     def write_file(self, output_file: str):
@@ -58,23 +60,29 @@ class AmiraGraphReader:
         Parameters:
             output_file (str): The path where the modified file should be saved.
         """
-        with open(output_file, 'w') as file:
+        with open(output_file, "w") as file:
             # 1. Write the file intro (metadata and headers)
             for line in self.file_intro:
                 file.write(line + "\n")
-            
+
             file.write("\n")
 
             # 2. Write vertex, edge, and point sections with correct @ indices
             data_counter = 1  # Keeps track of @X indices
 
-            for entity_type, entity_list in [("VERTEX", self._vertex_data), 
-                                            ("EDGE", self._edge_data), 
-                                            ("POINT", self._point_data)]:
+            for entity_type, entity_list in [
+                ("VERTEX", self._vertex_data),
+                ("EDGE", self._edge_data),
+                ("POINT", self._point_data),
+            ]:
                 for entity in entity_list:
                     # Assign incremental @X value without relying on previous keys
-                    file.write(f"{entity_type} {{ {entity['data_type']} {entity['attribute_name']} }} @{data_counter}\n")
-                    entity["data_key"] = f"@{data_counter}"  # Update entity with new @X reference
+                    file.write(
+                        f"{entity_type} {{ {entity['data_type']} {entity['attribute_name']} }} @{data_counter}\n"
+                    )
+                    entity["data_key"] = (
+                        f"@{data_counter}"  # Update entity with new @X reference
+                    )
                     data_counter += 1  # Increment for the next section
 
             # 3. Write the data section marker
@@ -85,15 +93,17 @@ class AmiraGraphReader:
             for entity_list in [self._vertex_data, self._edge_data, self._point_data]:
                 for entity in entity_list:
                     if data_counter != 1:
-                        file.write('\n')
-                    file.write(f"@{data_counter}\n")  # Write key identifier (e.g., @1, @2, etc.)
+                        file.write("\n")
+                    file.write(
+                        f"@{data_counter}\n"
+                    )  # Write key identifier (e.g., @1, @2, etc.)
                     for row in entity["data"]:
-                        file.write(" ".join(map(str, row)) + "\n")  # Write numerical data
+                        file.write(
+                            " ".join(map(str, row)) + "\n"
+                        )  # Write numerical data
                     data_counter += 1  # Increment for the next block
-                
+
         print(f"File successfully written to: {output_file}")
-
-
 
     def _parse_file(self):
         """
@@ -110,8 +120,7 @@ class AmiraGraphReader:
             if line.startswith("VERTEX"):
                 break
             # Store metadata up to (but not including) the first VERTEX header
-            file_intro.append(line.rstrip('\n'))
-
+            file_intro.append(line.rstrip("\n"))
 
         for line in self._file_lines:
             stripped_line = line.strip()
@@ -132,10 +141,12 @@ class AmiraGraphReader:
             parts = stripped_line.split()
             if not len(parts) >= 5:
                 continue
-            if parts[0] in ['VERTEX', 'EDGE', 'POINT']:
+            if parts[0] in ["VERTEX", "EDGE", "POINT"]:
                 entity_type = parts[0]  # 'VERTEX', 'EDGE', or 'POINT'
                 data_type = parts[2]  # 'float' or 'int'
-                attribute_name = " ".join(parts[3:-2])  # Handle multi-word attribute names
+                attribute_name = " ".join(
+                    parts[3:-2]
+                )  # Handle multi-word attribute names
                 data_key = parts[-1]  # e.g., '@1'
 
                 entity_data[entity_type].append(
@@ -143,20 +154,26 @@ class AmiraGraphReader:
                         "data_type": data_type,
                         "attribute_name": attribute_name,
                         "data_key": data_key,
-                        "data": self._extract_data_from_key(data_key)  # Extract actual data
+                        "data": self._extract_data_from_key(
+                            data_key
+                        ),  # Extract actual data
                     }
                 )
 
-        return file_intro, entity_data["VERTEX"], entity_data["EDGE"], entity_data["POINT"]
-
+        return (
+            file_intro,
+            entity_data["VERTEX"],
+            entity_data["EDGE"],
+            entity_data["POINT"],
+        )
 
     def _extract_data_from_key(self, key: str) -> List[np.ndarray]:
         """
         Extracts numerical data associated with a given key from the data section.
-        
+
         Parameters:
             key (str): The identifier for the data block (e.g., '@1').
-        
+
         Returns:
             List[np.ndarray]: A list of NumPy arrays where each array represents a row of numerical data.
         """
@@ -169,10 +186,12 @@ class AmiraGraphReader:
                 continue
             if collecting:
                 # Stop collecting if we hit an empty line or a new header/marker.
-                if (not stripped_line or 
-                    stripped_line.startswith("#") or 
-                    stripped_line.startswith("@") or 
-                    stripped_line.split()[0] in ["VERTEX", "EDGE", "POINT"]):
+                if (
+                    not stripped_line
+                    or stripped_line.startswith("#")
+                    or stripped_line.startswith("@")
+                    or stripped_line.split()[0] in ["VERTEX", "EDGE", "POINT"]
+                ):
                     break
                 try:
                     values = np.array(list(map(float, stripped_line.split())))
@@ -181,29 +200,34 @@ class AmiraGraphReader:
                     break
         return data
 
-
-
-    def add_EDGE_data(self, new_key: str, data_type: str, new_values: List[List[int]], ):
+    def add_EDGE_data(
+        self,
+        new_key: str,
+        data_type: str,
+        new_values: List[List[int]],
+    ):
         """
         Adds new edge data to the `_edge_data` dictionary.
 
         Parameters:
             new_key (str): The label for the new EDGE data (e.g., 'NewConnectivity').
             new_values (list of lists): New edge connectivity values to be added.
-        """                
-        
+        """
+
         new_values = [np.atleast_1d(n) for n in new_values]
-        
+
         # Warn if the key already exists
         if any(edge["attribute_name"] == new_key for edge in self._edge_data):
             print(f"Warning: EDGE key '{new_key}' already exists. Overwriting.")
 
         # Append new edge data
-        self._edge_data.append({
-            "data_type": data_type,  # EDGE data is typically integer
-            "attribute_name": new_key,
-            "data_key": f"@{len(self._edge_data) + 1}",  # Assigning a unique @X identifier
-            "data": new_values
-        })
+        self._edge_data.append(
+            {
+                "data_type": data_type,  # EDGE data is typically integer
+                "attribute_name": new_key,
+                "data_key": f"@{len(self._edge_data) + 1}",  # Assigning a unique @X identifier
+                "data": new_values,
+            }
+        )
 
         print(f"Added new EDGE data '{new_key}' successfully.")

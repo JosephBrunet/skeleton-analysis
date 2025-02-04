@@ -18,8 +18,8 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "networkx",
     "matplotlib",
+    "networkx",
     "numpy",
     "pandas",
 ]
