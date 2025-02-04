@@ -1,3 +1,4 @@
+import argparse
 import sys
 import pandas as pd
 import numpy as np
@@ -6,13 +7,30 @@ import pydot
 from networkx.drawing.nx_pydot import graphviz_layout
 import matplotlib.pyplot as plt
 
-from amira_graph_reader import AmiraGraphReader
+from skeleton_analysis.amira_graph_reader import AmiraGraphReader
 
 
+# input_file = "/data/projects/md1290_ltp/EDF/ZZ_ONGOING/big_heart_analysis/cleaned_spatial_graph_2.am"
+# output_file = "/data/projects/md1290_ltp/EDF/ZZ_ONGOING/big_heart_analysis/output.am"
+    
+    
 def main():
-    input_file = "/data/projects/md1290_ltp/EDF/ZZ_ONGOING/big_heart_analysis/cleaned_spatial_graph_2.am"
-    output_file = "/data/projects/md1290_ltp/EDF/ZZ_ONGOING/big_heart_analysis/output.am"
-    run_ordering(input_file, output_file)
+    """ Parses command-line arguments and runs the ordering script. """
+    
+    parser = argparse.ArgumentParser(description="Process an Amira ASCII spatial graph and compute Strahler Order & Topological Generation.")
+    
+    parser.add_argument("input_file", type=str, help="Path to the input Amira file")
+    parser.add_argument(
+        "--output",
+        type=str,
+        nargs="?",
+        default="output.am",
+        help="Optional path to save the modified Amira file.",
+    )
+    args = parser.parse_args()
+
+    run_ordering(args.input_file, args.output)
+
 
 
 def run_ordering(input_file, output_file):
@@ -68,7 +86,7 @@ def run_ordering(input_file, output_file):
     print(f"Updated Leaf Nodes: {updated_leaf_nodes}")
 
     # Step 6: Visualize the Corrected Graph
-    # visualize_graph(vertex_data, corrected_edges, updated_root_nodes, updated_leaf_nodes)
+    visualize_graph(vertex_data, corrected_edges, updated_root_nodes, updated_leaf_nodes)
 
     # Step 7: Compute Strahler Order
     strahler_order, strahler_order_list = calculate_strahler_order(G_corrected, edge_data)
