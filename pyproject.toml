@@ -39,7 +39,8 @@ test = [
 ]
 
 [project.scripts]
-run_ordering = "skeleton_analysis.run_ordering:main"
+skel_run_ordering = "skeleton_analysis.run_ordering:main"
+skel_plot_graphs = "skeleton_analysis.plot_graphs:main"
 
 [project.urls]
 homepage = "https://github.com/JosephBrunet/skeleton-analysis.git"
