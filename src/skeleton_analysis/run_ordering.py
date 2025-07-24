@@ -42,34 +42,18 @@ def run_ordering(input_file, output_file):
     print(f"Number of Edges: {graph_reader.num_edges}")
     print(f"Number of Points: {graph_reader.num_points}")
 
-    # Extract data
-    vertex_data = next(
-        (
-            d["data"]
-            for d in graph_reader.vertex_data
-            if d["attribute_name"] == "VertexCoordinates"
-        ),
-        [],
-    )
-    edge_data = next(
-        (
-            d["data"]
-            for d in graph_reader.edge_data
-            if d["attribute_name"] == "EdgeConnectivity"
-        ),
-        [],
-    )
-
+    # Step 2: Extract edge data (connectivity)
+    edge_data = graph_reader.edge_data.get("EdgeConnectivity", [])
     if not edge_data:
-        print("Error: No edge data found.")
+        print("Error: No edge connectivity data found.")
         return
-
+    
     # Step 2: Convert to NetworkX Graph
     edges = [(int(e[0]), int(e[1])) for e in edge_data]
     G = nx.DiGraph(edges)
 
     # Step 3: Identify Root Nodes (Before Correction)
-    root_nodes = [node for node in G.nodes if G.out_degree(node) == 0]
+    root_nodes = [node for node in G.nodes if G.in_degree(node) == 0]
 
     if len(root_nodes) == 0:
         print("Error: No root node found. The graph may not be a tree.")
@@ -85,20 +69,48 @@ def run_ordering(input_file, output_file):
 
     print(f"Initial Root Node: {root_node}")
 
-    # Step 4: Validate & Correct Edges
+
+    # Step 4: If the root node looks like a leaf, the graph is probably inverted
+    if G.out_degree(root_node) == 0 and G.in_degree(root_node) > 0:
+        print(f"Warning: Root node {root_node} has no outgoing edges. The tree may be inverted.")
+        user_answer = input("Flipping all edges? [Y/n]") or "y"
+        if not 'n' in user_answer.lower():
+            print("Flipping all edges globally...")
+            # Flip all edges globally
+            edges = [(t, s) for (s, t) in edges]
+            G = nx.DiGraph(edges)
+
+    # # Step 6: Visualize the Corrected Graph
+    # visualize_graph(
+    #     G
+    # )
+
+
+    # Step 5: Validate & Correct Edges (after possible inversion)
     corrected_edges, bad_edge_indices = find_bad_edges(
-        edges, root_node, flag_flip_root=True
+        edges, root_node, flag_flip_root=True  
     )
     print(f"Number of bad edges found: {len(bad_edge_indices)}")
 
+    
     # Step 5: Recompute Root Nodes **After** Edge Correction
     G_corrected = nx.DiGraph(corrected_edges)
 
+
+    # Step 4: If the root node looks like a leaf, the graph is probably inverted
+    if G_corrected.out_degree(root_node) == 0 and G_corrected.in_degree(root_node) > 0:
+        print(f"Warning: Root node {root_node} has no outgoing edges. The tree may be inverted.")
+        print("Flipping all edges globally...")
+        # Flip all edges globally
+        corrected_edges = [(t, s) for (s, t) in corrected_edges]
+        G_corrected = nx.DiGraph(corrected_edges)
+
+
     updated_leaf_nodes = [
-        node for node in G_corrected.nodes if G_corrected.in_degree(node) == 0
+        node for node in G_corrected.nodes if G_corrected.out_degree(node) == 0
     ]
     updated_root_nodes = [
-        node for node in G_corrected.nodes if G_corrected.out_degree(node) == 0
+        node for node in G_corrected.nodes if G_corrected.in_degree(node) == 0
     ]
 
     print(f"Updated Root Nodes: {updated_root_nodes}")
@@ -106,18 +118,24 @@ def run_ordering(input_file, output_file):
 
     # Step 6: Visualize the Corrected Graph
     visualize_graph(
-        corrected_edges
+        G_corrected
     )
     
     # Step 7: Compute Strahler Order
     strahler_order, strahler_order_list = calculate_strahler_order(
         G_corrected, edge_data
     )
+    
+    # 1. Overwrite existing edge connectivity
+    graph_reader.remove_EDGE_data("EdgeConnectivity")  # Optional but cleaner
+    graph_reader.add_EDGE_data("EdgeConnectivity", "int", corrected_edges)
+
+    # 2. Add Strahler order aligned with corrected edge direction
     graph_reader.add_EDGE_data("strahler", "int", strahler_order_list)
 
-    # Step 8: Compute Topological Generation
-    node_gen, topo_order_list = topological_generation(G_corrected, root_node, edge_data)
-    graph_reader.add_EDGE_data("topo", "int", topo_order_list)
+    # # Step 8: Compute Topological Generation
+    # node_gen, topo_order_list = topological_generation(G_corrected, root_node, edge_data)
+    # graph_reader.add_EDGE_data("topo", "int", topo_order_list)
     
 
     graph_reader.write_file(output_file)
@@ -229,23 +247,19 @@ def find_bad_edges(edge_nodes, root_node, flag_flip_root=False):
 
 
 
-def visualize_graph(edge_data):
+def visualize_graph(nx_graph):
     """Visualizes the spatial graph using Graphviz's 'dot' layout for MATLAB-like hierarchical display with node labels."""
 
-    if not edge_data:
-        print("Warning: No data available for visualization.")
-        return
-
     # Create a directed graph
-    G = nx.DiGraph()
+    G = nx_graph
     # G.add_nodes_from(range(len(vertex_data)))  # Add nodes
-    G.add_edges_from(edge_data)
+    # G.add_edges_from(edge_data)
 
     leaf_nodes = [
-        node for node in G.nodes if G.in_degree(node) == 0
+        node for node in G.nodes if G.out_degree(node) == 0
     ]
     root_nodes = [
-        node for node in G.nodes if G.out_degree(node) == 0
+        node for node in G.nodes if G.in_degree(node) == 0
     ]
 
     # Define node colors explicitly
@@ -275,17 +289,17 @@ def visualize_graph(edge_data):
         pos,
         labels=labels,
         with_labels=True,
-        node_size=50,
+        node_size=80,
         node_color=node_colors,
-        font_size=5,
+        font_size=7,
         edge_color="lightblue",
         alpha=0.6,
         width=0.7,
     )
 
     plt.title("Spatial Graph with Node IDs")
-    plt.show(block=False)
-
+    # plt.show(block=False)
+    plt.show()
 
 def calculate_strahler_order(G, edge_data):
     """Computes Strahler order for each node in an inverted graph (root at bottom, leaves at top).
@@ -371,8 +385,6 @@ def topological_generation(G, root_node_id, edge_data):
     terminal_nodes = unique_nodes[
         counts == 1
     ]  # Nodes appearing only once (leaf nodes)
-
-    import pdb; pdb.set_trace()
 
     nx.set_node_attributes(G, {node: (node in terminal_nodes) for node in G.nodes}, 'is_terminal')
 

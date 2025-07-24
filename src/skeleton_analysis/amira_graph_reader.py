@@ -15,21 +15,28 @@ class AmiraGraphReader:
         self.file_intro, self._vertex_data, self._edge_data, self._point_data = (
             self._parse_file()
         )
+        self._structured_data = self.get_structured_data()
+
 
     @property
     def vertex_data(self):
-        """Returns structured vertex data as a dictionary."""
-        return self._vertex_data
+        """Returns the structured vertex data dictionary."""
+        return self.structured_data.get("VERTEX", {})
 
     @property
     def edge_data(self):
-        """Returns structured edge data as a dictionary."""
-        return self._edge_data
+        """Returns the structured edge data dictionary."""
+        return self.structured_data.get("EDGE", {})
 
     @property
     def point_data(self):
-        """Returns structured point data as a dictionary."""
-        return self._point_data
+        """Returns the structured point data dictionary."""
+        return self.structured_data.get("POINT", {})
+
+    @property
+    def structured_data(self):
+        return self._structured_data
+
 
     @property
     def num_vertices(self):
@@ -50,7 +57,7 @@ class AmiraGraphReader:
         Returns:
             list of str: The file content split into lines.
         """
-        with open(self.filepath) as file:
+        with open(self.filepath, "r", encoding="latin1") as file:
             return file.readlines()
 
     def write_file(self, output_file: str):
@@ -231,3 +238,34 @@ class AmiraGraphReader:
         )
 
         print(f"Added new EDGE data '{new_key}' successfully.")
+
+
+    def remove_EDGE_data(self, key: str):
+        """
+        Removes an EDGE data field by its attribute name.
+        """
+        self._edge_data = [e for e in self._edge_data if e["attribute_name"] != key]
+        print(f"Removed EDGE data '{key}' (if it existed).")
+
+
+    def get_structured_data(self):
+        """
+        Returns all parsed data (vertex, edge, point) as a structured dictionary.
+        Format:
+        {
+            "VERTEX": {attribute_name: data},
+            "EDGE": {attribute_name: data},
+            "POINT": {attribute_name: data}
+        }
+        """
+        structured = {}
+
+        for category, data_list in [("VERTEX", self._vertex_data),
+                                    ("EDGE", self._edge_data),
+                                    ("POINT", self._point_data)]:
+            structured[category] = {}
+            for entry in data_list:
+                name = entry["attribute_name"]
+                structured[category][name] = entry["data"]
+        
+        return structured
